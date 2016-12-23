@@ -10,21 +10,21 @@ sealed trait Command extends aggregate.Command {
 
 case class CreateReservation(reservationId: EntityId, organizer: EntityId, start: Long, end: Long) extends Command
 
-case class InviteAttendee(reservationId: EntityId, attendee: EntityId) extends Command
+case class InviteAttendee(reservationId: EntityId, attendeeId: EntityId) extends Command
 
 case class CancelReservation(reservationId: EntityId) extends Command
 
-//case class AcceptAttendeeInvitation(reservationId: EntityId, attendee: Attendee) extends Command
-//
-//case class DeclineAttendeeInvitation(reservationId: EntityId, attendee: Attendee) extends Command
-//
+case class AcceptAttendeeInvitation(reservationId: EntityId, attendeeId: EntityId) extends Command
+
+case class DeclineAttendeeInvitation(reservationId: EntityId, attendeeId: EntityId) extends Command
+
 case class ReservationCreated(reservationId: EntityId, organizer: EntityId, start: Long, end: Long)
 //
-case class AttendeeInvited(reservationId: EntityId, attendee: EntityId, start: Long, end: Long)
+case class AttendeeInvited(reservationId: EntityId, attendeeId: EntityId, start: Long, end: Long)
 
-//case class AttendeeDeclineInvitation(reservationId: EntityId, attendee: Attendee)
-//
-//case class AttendeeAcceptInvitation(reservationId: EntityId, attendee: Attendee)
+case class AttendeeDeclineInvitation(reservationId: EntityId, attendeeId: EntityId)
+
+case class AttendeeAcceptInvitation(reservationId: EntityId, attendeeId: EntityId)
 //
 case class ReservationCanceled(reservationId: EntityId)
 

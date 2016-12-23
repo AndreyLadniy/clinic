@@ -4,6 +4,7 @@ import akka.actor.{Actor, ActorLogging, Props}
 import akka.http.scaladsl.Http
 import akka.util.Timeout
 import ecommerce.scheduling.OrganizerReservationOfficeId
+import ecommerce.scheduling.calendar.CalendarOfficeId
 import ecommerce.scheduling.reservation.AttendeeReservationOfficeId
 import org.json4s.Formats
 import pl.newicom.dddd.serialization.JsonSerHints.fromConfig
@@ -27,11 +28,14 @@ class HttpService(interface: String, port: Int)(implicit val timeout: Timeout)
 
   override def receive = Actor.emptyBehavior
 
-  override def offices = Set(OrganizerReservationOfficeId, AttendeeReservationOfficeId)
+  override def offices = Set(OrganizerReservationOfficeId, AttendeeReservationOfficeId, CalendarOfficeId)
 
   private def route = /*logRequestResult("sales")*/ {
     pathPrefix("ecommerce") {
-      path("sales") {
+      path("calendar") {
+        handle[ecommerce.scheduling.calendar.CalendarCommand]
+      } ~
+      path("reservation") {
         handle[ecommerce.scheduling.Command]
       }
     }

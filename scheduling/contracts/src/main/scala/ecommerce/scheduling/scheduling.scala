@@ -1,21 +1,24 @@
 package ecommerce.scheduling
 
-import java.time.{LocalDate, ZonedDateTime}
+import java.time.ZonedDateTime
 
-import pl.newicom.dddd.aggregate.EntityId
 
-case class Calendar(id: EntityId, version: Long, email: String)
+case class Interval(start: ZonedDateTime, end: ZonedDateTime) {
+  def hasIntersect(other: Interval): Boolean = start.isBefore(other.end) && other.start.isBefore(end)
+}
 
-sealed trait EventInterval
+object Interval {
 
-case class DateTimeInterval(start: Long, end: Long)
+  trait IntervalOrdering extends Ordering[Interval] {
+    def compare(x: Interval, y: Interval): Int =
+    //      if (x.start<y.end && y.start < x.end) 0
+    //      else if (x.end<=y.start) -1
+    //      else 1
+      if (x.start.isBefore(y.end) && y.start.isBefore(x.end)) 0
+      else if (x.end.isBefore(y.start) || x.end.isEqual(y.start)) -1
+      else 1
+  }
 
-case class DateInterval(start: LocalDate, end: LocalDate)
+  implicit object IntervalOrderingObject extends IntervalOrdering
 
-case class Attendee(email: String)
-
-case class Organizer(email: String)
-
-case class Event(id: EntityId, interval: EventInterval, organizer: Calendar, attendees: Seq[Calendar])
-
-case class TimeReservation(id: EntityId, interval: EventInterval, organizer: Calendar, attendees: Seq[Calendar])
+}

@@ -4,25 +4,30 @@ lazy val scheduling = (project in file(".")).aggregate(`scheduling-contracts`, `
 
 lazy val `scheduling-contracts` = (project in file("contracts"))
   .settings(
-    libraryDependencies += AkkaDDD.messaging
+    libraryDependencies ++= Seq(
+      AkkaDDD.messaging,
+      "com.fasterxml.jackson.module" % "jackson-module-parameter-names" % "2.8.5",
+      "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % "2.8.5",
+      "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % "2.8.5"
+    )
   )
 
 lazy val `scheduling-write-back` = (project in file("write-back"))
   .settings(
-//    dockerExposedPorts := Seq(9101),
+    dockerExposedPorts := Seq(9101),
     mainClass in Compile:= Some("ecommerce.scheduling.app.SchedulingBackendApp"),
 //    multiNodeTestingSettings,
     libraryDependencies ++=
       Seq(AkkaDDD.core, AkkaDDD.test, AkkaDDD.eventStore, AkkaDDD.monitoring, AkkaDDD.scheduling)
   )
   .dependsOn(`scheduling-contracts`, "commons")
-//  .configs(MultiJvm)
+  .configs(MultiJvm)
   .enablePlugins(ApplicationPlugin)
 
 
 lazy val `scheduling-write-front` = (project in file("write-front"))
   .settings(
-//    dockerExposedPorts := Seq(9100),
+    dockerExposedPorts := Seq(9100),
 //    javaOptions in Universal ++= Seq("-DmainClass=ecommerce.sales.app.SalesFrontApp"),
     mainClass in Compile:= Some("ecommerce.scheduling.app.SchedulingFrontApp"),
     libraryDependencies += AkkaDDD.writeFront

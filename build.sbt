@@ -13,8 +13,18 @@ lazy val root = project.settings(
 )
   .aggregate(commons, scheduling)
 
+lazy val core = project
+
 lazy val commons = project
+
+lazy val cluster = project.dependsOn(commons)
 
 lazy val scheduling = project.dependsOn(commons)
 
 lazy val headquarters = project.dependsOn(commons)
+
+addCommandAlias("redeploy", ";clean;docker:stage;restart")
+addCommandAlias("redeployQuick", ";docker:stage;restart")
+
+addCommandAlias("rswb", ";project scheduling-write-back;docker:stage;restart")
+addCommandAlias("rswf", ";project scheduling-write-front;docker:stage;restart")

@@ -5,7 +5,7 @@ lazy val headquarters = (project in file(".")).aggregate(`headquarters-write-bac
 
 lazy val `headquarters-write-back` = (project in file("write-back"))
   .settings(
-//    dockerExposedPorts := Seq(9401),
+    dockerExposedPorts := Seq(9401),
 //    javaOptions in Universal += "-DmainClass=ecommerce.headquarters.app.HeadquartersApp",
     mainClass in Compile:= Some("ecommerce.headquarters.app.HeadquartersApp"),
     libraryDependencies ++=

@@ -2,19 +2,12 @@ package ecommerce.headquarters.app
 
 import akka.actor.{Props, _}
 import com.typesafe.config.Config
-import ecommerce.headquarters.app.HeadquartersConfiguration._
-import ecommerce.headquarters.processes.InvitingProcessManager
+import ecommerce.headquarters.processes.CalendarTimeProcessManager
 import org.slf4j.Logger
-import pl.newicom.dddd
-import pl.newicom.dddd.actor.{CreationSupport, PassivationConfig}
-import pl.newicom.dddd.aggregate.AggregateRootActorFactory
-import pl.newicom.dddd.cluster._
+import pl.newicom.dddd.actor.PassivationConfig
 import pl.newicom.dddd.coordination.ReceptorConfig
-import pl.newicom.dddd.eventhandling.NoPublishing
-import pl.newicom.dddd.office.LocalOfficeId
 import pl.newicom.dddd.process.ReceptorSupport.ReceptorFactory
 import pl.newicom.dddd.process.{Receptor, SagaActorFactory}
-import pl.newicom.dddd.scheduling.Scheduler
 import pl.newicom.eventstore.EventstoreSubscriber
 
 import scala.concurrent.duration.DurationInt
@@ -29,18 +22,19 @@ trait HeadquartersConfiguration {
   def config: Config
   implicit def system: ActorSystem
 
-  def creationSupport = implicitly[CreationSupport]
+//  def creationSupport = implicitly[CreationSupport]
+
 //  implicit val schedulingOfficeID: LocalOfficeId[Scheduler] = dddd.scheduling.schedulingOfficeId(department)
-//
+
 //  implicit object SchedulerFactory extends AggregateRootActorFactory[Scheduler] {
 //    override def props(pc: PassivationConfig) = Props(new Scheduler(pc) with NoPublishing {
 //      override def id = "global"
 //    })
 //  }
 
-  implicit object OrderProcessManagerActorFactory extends SagaActorFactory[InvitingProcessManager] {
+  implicit object OrderProcessManagerActorFactory extends SagaActorFactory[CalendarTimeProcessManager] {
     def props(pc: PassivationConfig): Props =
-      Props(new InvitingProcessManager(pc))
+      Props(new CalendarTimeProcessManager(pc))
   }
 
   implicit def receptorFactory: ReceptorFactory = (config: ReceptorConfig) => {

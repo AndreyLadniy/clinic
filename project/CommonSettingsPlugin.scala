@@ -1,9 +1,9 @@
 import sbt.Keys._
 import sbt._
+import com.typesafe.sbt.packager.docker.{Cmd, DockerKeys}
+import RestartCommand._
 
-object CommonSettingsPlugin extends AutoPlugin
-//  with DockerKeys {
-{
+object CommonSettingsPlugin extends AutoPlugin with DockerKeys {
   override def trigger = allRequirements
   override lazy val projectSettings = Seq(
     updateOptions := updateOptions.value.withCachedResolution(cachedResoluton = true),

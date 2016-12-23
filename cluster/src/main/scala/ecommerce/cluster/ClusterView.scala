@@ -1,14 +1,15 @@
-package ecommerce.headquarters
+package ecommerce.cluster
 
 import akka.actor.{Actor, ActorLogging, Address, Props}
 import akka.cluster.Cluster
 import akka.cluster.ClusterEvent._
 
+
 object ClusterView {
 
   case object GetMemberNodes
 
-  final val Name = "cluster-view-h"
+  final val Name = "cluster-view"
 
   def props: Props = Props(new ClusterView)
 }

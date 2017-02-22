@@ -10,4 +10,6 @@ sealed trait CalendarCommand extends aggregate.Command {
 
 case class CreateCalendar(calendarId: EntityId) extends CalendarCommand
 
-case class CalendarCreated(calendarId: EntityId)
+sealed trait CalendarEvent
+
+case class CalendarCreated(calendarId: EntityId) extends CalendarEvent

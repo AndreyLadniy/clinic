@@ -2,8 +2,9 @@ package ecommerce.scheduling.calendar
 
 import java.util.Date
 
+import ecommerce.scheduling.calendar.Calendar.CalendarActions
 import pl.newicom.dddd.actor.PassivationConfig
-import pl.newicom.dddd.aggregate.{AggregateRoot, AggregateRootSupport, AggregateState, EntityId}
+import pl.newicom.dddd.aggregate._
 import pl.newicom.dddd.eventhandling.EventPublisher
 import pl.newicom.dddd.office.LocalOfficeId.fromRemoteId
 
@@ -11,34 +12,29 @@ object Calendar extends AggregateRootSupport {
 
   implicit val officeId = fromRemoteId[Calendar](CalendarOfficeId)
 
-  case class State(createDate: Date)
-    extends AggregateState[State] {
+  sealed trait CalendarActions extends AggregateActions[CalendarEvent, CalendarActions] {}
 
-    override def apply = {
-      case CalendarCreated(calendarId) =>
-        this
-    }
+  implicit case object Uninitialized extends CalendarActions with Uninitialized[CalendarActions] {
+
+    def actions: Actions =
+      handleCommands {
+        case CreateCalendar(calendarId) =>
+          CalendarCreated(calendarId)
+      }
+        .handleEvents {
+          case CalendarCreated(calendarId) =>
+            Created(new Date)
+        }
 
   }
+
+  case class Created(createDate: Date) extends CalendarActions {
+    def actions: Actions = noActions
+  }
+
 
 }
 
-abstract class Calendar(val pc: PassivationConfig) extends AggregateRoot[Calendar.State, Calendar] {
+abstract class Calendar(val pc: PassivationConfig) extends AggregateRoot[CalendarEvent, CalendarActions, Calendar] {
   this: EventPublisher =>
-
-  import Calendar.State
-
-  override val factory: AggregateRootFactory = {
-    case CalendarCreated(calendarId) =>
-      State(createDate = new Date)
-  }
-
-  override def handleCommand: Receive = {
-    case CreateCalendar(calendarId) =>
-      if (initialized) {
-        throw new RuntimeException(s"Calendar $calendarId already exists")
-      } else {
-        raise(CalendarCreated(calendarId))
-      }
-  }
 }

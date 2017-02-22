@@ -3,7 +3,7 @@ package ecommerce.scheduling.app
 import akka.actor._
 import akka.kernel.Bootable
 import ecommerce.scheduling.calendar.Calendar
-import ecommerce.scheduling.{CalendarTimeAllocation, CalendarTimeManager}
+import ecommerce.scheduling.{CalendarTimeManager, TimeAllocationManager}
 import pl.newicom.dddd.actor.PassivationConfig
 import pl.newicom.dddd.aggregate._
 import pl.newicom.dddd.eventhandling.NoPublishing
@@ -22,8 +22,8 @@ trait SchedulingBackendConfiguration {
     override def props(pc: PassivationConfig) = Props(new CalendarTimeManager(pc) with NoPublishing with AggregateRootMonitoring)
   }
 
-  implicit object CalendarTimeAllocationARFactory extends AggregateRootActorFactory[CalendarTimeAllocation] {
-    override def props(pc: PassivationConfig) = Props(new CalendarTimeAllocation(pc) with NoPublishing with AggregateRootMonitoring)
+  implicit object CalendarTimeAllocationARFactory extends AggregateRootActorFactory[TimeAllocationManager] {
+    override def props(pc: PassivationConfig) = Props(new TimeAllocationManager(pc) with NoPublishing with AggregateRootMonitoring)
   }
 
 }

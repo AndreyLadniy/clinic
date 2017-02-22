@@ -1,3 +1,5 @@
+import Deps._
+
 name := "clinic"
 
 organization in ThisBuild := "com.rudux"
@@ -22,6 +24,14 @@ lazy val cluster = project.dependsOn(commons)
 lazy val scheduling = project.dependsOn(commons)
 
 lazy val headquarters = project.dependsOn(commons)
+
+lazy val `view-update-mongodb` = project.settings(
+  libraryDependencies ++=
+    Seq(
+      "org.reactivemongo" %% "reactivemongo" % "0.12.1",
+      "pl.newicom.dddd" %% "view-update" % Version.akkaDDD
+    )
+)
 
 addCommandAlias("redeploy", ";clean;docker:stage;restart")
 addCommandAlias("redeployQuick", ";docker:stage;restart")

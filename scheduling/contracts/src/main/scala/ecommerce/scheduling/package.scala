@@ -8,6 +8,6 @@ package object scheduling {
 
   implicit object CalendarTimeManagerOfficeId extends RemoteOfficeId[CalendarTimeManagerCommand]("CalendarTimeManager", "Scheduling", classOf[CalendarTimeManagerCommand])
 
-  implicit object CalendarTimeAllocationOfficeId extends RemoteOfficeId[CalendarTimeAllocationCommand]("CalendarTimeAllocation", "Scheduling", classOf[CalendarTimeAllocationCommand])
+  implicit object TimeAllocationManagerOfficeId extends RemoteOfficeId[TimeAllocationManagerCommand]("TimeAllocationManager", "Scheduling", classOf[TimeAllocationManagerCommand])
 
 }

@@ -1,0 +1,172 @@
+package ecommerce.scheduling
+
+import java.time.ZonedDateTime
+
+import akka.actor.Props
+import pl.newicom.dddd.actor.PassivationConfig
+import pl.newicom.dddd.aggregate.{AggregateRootActorFactory, EntityId}
+import pl.newicom.dddd.aggregate.error.AggregateRootNotInitializedException
+import pl.newicom.dddd.eventhandling.LocalPublisher
+import pl.newicom.dddd.office.Office
+import pl.newicom.dddd.test.support.OfficeSpec
+
+import scala.concurrent.duration._
+import scala.concurrent.duration.Duration
+
+object CalendarTimeManagerSpec {
+  implicit def factory(implicit it: Duration = 1.minute): AggregateRootActorFactory[CalendarTimeManager] =
+    new AggregateRootActorFactory[CalendarTimeManager] {
+      override def props(pc: PassivationConfig): Props = Props(new CalendarTimeManager(pc) with LocalPublisher)
+      override def inactivityTimeout: Duration = it
+    }
+}
+
+import CalendarTimeManagerSpec._
+
+class CalendarTimeManagerSpec extends OfficeSpec[CalendarTimeManager] {
+
+  def reservationOffice: Office = officeUnderTest
+
+  def calendarId: EntityId = aggregateId
+
+  def timeAllocationManagerId(id: String): String = s"timeAllocationManagerId-$id"
+
+  "CalendarTimeManager office" should {
+
+    "process AllocateCalendarTime command and allocate time" in {
+      when(
+        AllocateCalendarTime(calendarId, timeAllocationManagerId("1"), "1",  Interval(ZonedDateTime.parse("2017-02-13T10:30Z"), ZonedDateTime.parse("2017-02-13T11:30Z")))
+      )
+      .expectEvent[CalendarTimeManagerEvent](
+        CalendarTimeAllocated(calendarId, timeAllocationManagerId("1"), "1", Interval(ZonedDateTime.parse("2017-02-13T10:30Z"), ZonedDateTime.parse("2017-02-13T11:30Z")))
+      )
+    }
+
+    "process AllocateCalendarTime command and throw exception if try allocate twice" in {
+      given(
+        AllocateCalendarTime(calendarId, timeAllocationManagerId("1"), "1",  Interval(ZonedDateTime.parse("2017-02-13T10:30Z"), ZonedDateTime.parse("2017-02-13T11:30Z")))
+      )
+      .when(
+        AllocateCalendarTime(calendarId, timeAllocationManagerId("1"), "1",  Interval(ZonedDateTime.parse("2017-02-13T10:30Z"), ZonedDateTime.parse("2017-02-13T11:30Z")))
+      )
+      .expectException[RuntimeException](s"CalendarTimeManager $calendarId has allocation by TimeallocationManager ${timeAllocationManagerId("1")}")
+    }
+
+    "process AllocateCalendarTime command and add into queue if there is no time for allocation" in {
+      given(
+        AllocateCalendarTime(calendarId, timeAllocationManagerId("1"), "1",  Interval(ZonedDateTime.parse("2017-02-13T10:30Z"), ZonedDateTime.parse("2017-02-13T11:30Z"))),
+        AllocateCalendarTime(calendarId, timeAllocationManagerId("2"), "1",  Interval(ZonedDateTime.parse("2017-02-13T11:30Z"), ZonedDateTime.parse("2017-02-13T12:30Z"))),
+        AllocateCalendarTime(calendarId, timeAllocationManagerId("3"), "1",  Interval(ZonedDateTime.parse("2017-02-13T12:30Z"), ZonedDateTime.parse("2017-02-13T13:30Z")))
+      )
+      .when(
+        AllocateCalendarTime(calendarId, timeAllocationManagerId("4"), "1",  Interval(ZonedDateTime.parse("2017-02-13T11:30Z"), ZonedDateTime.parse("2017-02-13T12:30Z")))
+      )
+      .expectEvent[CalendarTimeManagerEvent](
+        CalendarTimeAllocationQueued(calendarId, timeAllocationManagerId("4"), "1", Interval(ZonedDateTime.parse("2017-02-13T11:30Z"), ZonedDateTime.parse("2017-02-13T12:30Z")))
+      )
+    }
+
+  }
+
+//  "CalendarTimeManager office" should {
+//    "process AllocateCalendarTime command and throw exception if try allocate twice" in {
+//      given(
+//        AllocateCalendarTime(calendarId, timeAllocationManagerId("1"), "1",  Interval(ZonedDateTime.parse("2017-02-13T10:30Z"), ZonedDateTime.parse("2017-02-13T11:30Z")))
+//      )
+//        .when(
+//          AllocateCalendarTime(calendarId, timeAllocationManagerId("1"), "1",  Interval(ZonedDateTime.parse("2017-02-13T10:30Z"), ZonedDateTime.parse("2017-02-13T11:30Z")))
+//        )
+//        .expectException[RuntimeException](s"CalendarTimeManager $calendarId has allocation by TimeallocationManager ${timeAllocationManagerId("1")}")
+//    }
+//  }
+
+//  "CalendarTimeManager office" should {
+//    "process AllocateCalendarTime command and add into queue if there is no time for allocation" in {
+//      given(
+//        AllocateCalendarTime(calendarId, timeAllocationManagerId("1"), "1",  Interval(ZonedDateTime.parse("2017-02-13T10:30Z"), ZonedDateTime.parse("2017-02-13T11:30Z"))),
+//        AllocateCalendarTime(calendarId, timeAllocationManagerId("2"), "1",  Interval(ZonedDateTime.parse("2017-02-13T11:30Z"), ZonedDateTime.parse("2017-02-13T12:30Z"))),
+//        AllocateCalendarTime(calendarId, timeAllocationManagerId("3"), "1",  Interval(ZonedDateTime.parse("2017-02-13T12:30Z"), ZonedDateTime.parse("2017-02-13T13:30Z")))
+//      )
+//      .when(
+//        AllocateCalendarTime(calendarId, timeAllocationManagerId("4"), "1",  Interval(ZonedDateTime.parse("2017-02-13T11:30Z"), ZonedDateTime.parse("2017-02-13T12:30Z")))
+//      )
+//      .expectEvent[CalendarTimeManagerEvent](
+//        CalendarTimeAllocationQueued(calendarId, timeAllocationManagerId("4"), "1", Interval(ZonedDateTime.parse("2017-02-13T11:30Z"), ZonedDateTime.parse("2017-02-13T12:30Z")))
+//      )
+//    }
+//  }
+
+
+  "CalendarTimeManager office" should {
+    "process DeallocateCalendarTime command and throw exception on uninitialized aggregate root" in {
+      when(
+        DeallocateCalendarTime(calendarId, timeAllocationManagerId("1"))
+      )
+        .expectException[AggregateRootNotInitializedException]()
+    }
+  }
+
+  "CalendarTimeManager office" should {
+    "process DeallocateCalendarTime command and throw exception if there is no allocations" in {
+      given(
+        AllocateCalendarTime(calendarId, timeAllocationManagerId("2"), "1",  Interval(ZonedDateTime.parse("2017-02-13T10:30Z"), ZonedDateTime.parse("2017-02-13T11:30Z")))
+      )
+        .when(
+        DeallocateCalendarTime(calendarId, timeAllocationManagerId("1"))
+      )
+      .expectException[RuntimeException](s"CalendarTimeManager $calendarId has no allocation by TimeallocationManager ${timeAllocationManagerId("1")}")
+    }
+  }
+
+  "CalendarTimeManager office" should {
+    "process DeallocateCalendarTime command and deallocate allocation" in {
+      given(
+        AllocateCalendarTime(calendarId, timeAllocationManagerId("1"), "1",  Interval(ZonedDateTime.parse("2017-02-13T10:30Z"), ZonedDateTime.parse("2017-02-13T11:30Z")))
+      )
+        .when(
+          DeallocateCalendarTime(calendarId, timeAllocationManagerId("1"))
+        )
+        .expectEvent[CalendarTimeManagerEvent](
+          CalendarTimeDeallocated(calendarId, timeAllocationManagerId("1"))
+        )
+    }
+  }
+
+  "CalendarTimeManager office" should {
+    "process DeallocateCalendarTime command and deallocate allocation and allocate matched allocations from queue" in {
+
+      given(
+        AllocateCalendarTime(calendarId, timeAllocationManagerId("1"), "1",  Interval(ZonedDateTime.parse("2017-02-13T10:30Z"), ZonedDateTime.parse("2017-02-13T11:30Z"))),
+        AllocateCalendarTime(calendarId, timeAllocationManagerId("2"), "1",  Interval(ZonedDateTime.parse("2017-02-13T11:30Z"), ZonedDateTime.parse("2017-02-13T12:30Z"))),
+        AllocateCalendarTime(calendarId, timeAllocationManagerId("3"), "1",  Interval(ZonedDateTime.parse("2017-02-13T12:30Z"), ZonedDateTime.parse("2017-02-13T13:30Z"))),
+        AllocateCalendarTime(calendarId, timeAllocationManagerId("4"), "1",  Interval(ZonedDateTime.parse("2017-02-13T11:30Z"), ZonedDateTime.parse("2017-02-13T12:30Z")))
+      )
+        .when(
+          DeallocateCalendarTime(calendarId, timeAllocationManagerId("2"))
+        )
+        .expectEvents[CalendarTimeManagerEvent](
+          CalendarTimeDeallocated(calendarId, timeAllocationManagerId("2")),
+          CalendarTimeAllocatedFromQueue(calendarId, timeAllocationManagerId("4"), "1",  Interval(ZonedDateTime.parse("2017-02-13T11:30Z"), ZonedDateTime.parse("2017-02-13T12:30Z")))
+        )
+    }
+  }
+
+  "CalendarTimeManager office" should {
+    "process DeallocateCalendarTime command and deallocate allocation from queue" in {
+      given(
+        AllocateCalendarTime(calendarId, timeAllocationManagerId("1"), "1",  Interval(ZonedDateTime.parse("2017-02-13T10:30Z"), ZonedDateTime.parse("2017-02-13T11:30Z"))),
+        AllocateCalendarTime(calendarId, timeAllocationManagerId("2"), "1",  Interval(ZonedDateTime.parse("2017-02-13T11:30Z"), ZonedDateTime.parse("2017-02-13T12:30Z"))),
+        AllocateCalendarTime(calendarId, timeAllocationManagerId("3"), "1",  Interval(ZonedDateTime.parse("2017-02-13T12:30Z"), ZonedDateTime.parse("2017-02-13T13:30Z"))),
+        AllocateCalendarTime(calendarId, timeAllocationManagerId("4"), "1",  Interval(ZonedDateTime.parse("2017-02-13T11:30Z"), ZonedDateTime.parse("2017-02-13T12:30Z")))
+      )
+        .when(
+          DeallocateCalendarTime(calendarId, timeAllocationManagerId("4"))
+        )
+        .expectEvent[CalendarTimeManagerEvent](
+          CalendarTimeDeallocatedFromQueue(calendarId, timeAllocationManagerId("4"))
+        )
+    }
+  }
+
+
+}

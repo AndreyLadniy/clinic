@@ -3,7 +3,7 @@ package ecommerce.scheduling.app
 import akka.cluster.Cluster
 import akka.kernel.Bootable
 import ecommerce.scheduling.calendar.Calendar
-import ecommerce.scheduling.{CalendarTimeAllocation, CalendarTimeManager}
+import ecommerce.scheduling.{CalendarTimeManager, TimeAllocationManager}
 import pl.newicom.dddd.cluster._
 import pl.newicom.dddd.office.OfficeFactory.office
 
@@ -14,7 +14,7 @@ class SchedulingBackendApp extends Bootable with SchedulingBackendConfiguration 
     Cluster(system).registerOnMemberUp {
       office[Calendar]
       office[CalendarTimeManager]
-      office[CalendarTimeAllocation]
+      office[TimeAllocationManager]
     }
   }
 

@@ -8,37 +8,38 @@ import pl.newicom.dddd.serialization.{JsonExtraSerHints, JsonSerializationHintsP
 
 class SchedulingSerializationHintsProvider extends JsonSerializationHintsProvider {
 
-  case object ZonedDateTimeSerializer extends CustomSerializer[ZonedDateTime](format =>
-    (
-      {
-        case JString(s) =>
-          ZonedDateTime.parse(s)
-        case JNull => null
-      },
-      {
-        case d: ZonedDateTime => JString(d.toString)
-      }
-    )
-  )
-
-  case object LocalDateSerializer extends CustomSerializer[LocalDate](format =>
-    (
-      {
-        case JString(s) =>
-          LocalDate.parse(s)
-        case JNull => null
-      },
-      {
-        case d: LocalDate => JString(d.toString)
-      }
-    )
-  )
-
-  object JavaTimeSerializers {
-    val all = List(ZonedDateTimeSerializer, LocalDateSerializer)
-  }
-
   val serializers = JavaTimeSerializers.all
 
   override def hints(default: Formats) = JsonExtraSerHints(NoTypeHints, serializers)
+
+}
+
+case object ZonedDateTimeSerializer extends CustomSerializer[ZonedDateTime](format =>
+  (
+    {
+      case JString(s) =>
+        ZonedDateTime.parse(s)
+      case JNull => null
+    },
+    {
+      case d: ZonedDateTime => JString(d.toString)
+    }
+  )
+)
+
+case object LocalDateSerializer extends CustomSerializer[LocalDate](format =>
+  (
+    {
+      case JString(s) =>
+        LocalDate.parse(s)
+      case JNull => null
+    },
+    {
+      case d: LocalDate => JString(d.toString)
+    }
+  )
+)
+
+object JavaTimeSerializers {
+  def all = List(ZonedDateTimeSerializer, LocalDateSerializer)
 }

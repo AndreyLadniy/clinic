@@ -38,6 +38,7 @@ lazy val `scheduling-write-front` = (project in file("write-front"))
 lazy val `scheduling-read-back` = (project in file("read-back"))
   .settings(
 //    javaOptions in Universal ++= Seq("-DmainClass=ecommerce.sales.app.SalesViewUpdateApp"),
+    mainClass in Compile:= Some("ecommerce.scheduling.app.SchedulingViewUpdateApp"),
     libraryDependencies ++= AkkaDDD.viewUpdateSql ++ Seq(AkkaDDD.eventStore)
   )
   .dependsOn(`scheduling-contracts`, "commons")
@@ -46,8 +47,11 @@ lazy val `scheduling-read-back` = (project in file("read-back"))
 
 lazy val `scheduling-read-front` = (project in file("read-front"))
   .settings(
-//    javaOptions in Universal ++= Seq("-DmainClass=ecommerce.sales.app.SalesReadFrontApp"),
-//    dockerExposedPorts := Seq(9110)
+//    javaOptions in Universal ++= Seq("-DmainClass=ecommerce.sales.app.SchedulingReadFrontApp"),
+    dockerExposedPorts := Seq(9110),
+    mainClass in Compile:= Some("ecommerce.scheduling.app.SchedulingReadFrontApp"),
+    libraryDependencies ++=
+      Seq("com.github.mauricio"  %% "postgresql-async" % "0.2.21")
   )
   .dependsOn(`scheduling-read-back` % "test->test;compile->compile", "commons")
   .enablePlugins(HttpServerPlugin)

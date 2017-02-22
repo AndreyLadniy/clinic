@@ -2,7 +2,7 @@ package ecommerce.headquarters.app
 
 import akka.cluster.Cluster
 import akka.kernel.Bootable
-import ecommerce.headquarters.processes.CalendarTimeProcessManager
+import ecommerce.headquarters.processes.TimeAllocationProcessManager
 import pl.newicom.dddd.cluster._
 import pl.newicom.dddd.office.OfficeFactory._
 
@@ -12,7 +12,7 @@ class HeadquartersApp extends Bootable with HeadquartersConfiguration {
 //    system.actorOf(ClusterView.props, ClusterView.Name)
 
     Cluster(system).registerOnMemberUp {
-      office[CalendarTimeProcessManager]
+      office[TimeAllocationProcessManager]
     }
   }
 

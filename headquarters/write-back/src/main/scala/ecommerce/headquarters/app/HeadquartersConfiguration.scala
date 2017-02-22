@@ -2,7 +2,7 @@ package ecommerce.headquarters.app
 
 import akka.actor.{Props, _}
 import com.typesafe.config.Config
-import ecommerce.headquarters.processes.CalendarTimeProcessManager
+import ecommerce.headquarters.processes.TimeAllocationProcessManager
 import org.slf4j.Logger
 import pl.newicom.dddd.actor.PassivationConfig
 import pl.newicom.dddd.coordination.ReceptorConfig
@@ -32,9 +32,9 @@ trait HeadquartersConfiguration {
 //    })
 //  }
 
-  implicit object OrderProcessManagerActorFactory extends SagaActorFactory[CalendarTimeProcessManager] {
+  implicit object OrderProcessManagerActorFactory extends SagaActorFactory[TimeAllocationProcessManager] {
     def props(pc: PassivationConfig): Props =
-      Props(new CalendarTimeProcessManager(pc))
+      Props(new TimeAllocationProcessManager(pc))
   }
 
   implicit def receptorFactory: ReceptorFactory = (config: ReceptorConfig) => {

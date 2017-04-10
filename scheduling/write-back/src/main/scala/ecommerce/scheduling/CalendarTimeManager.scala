@@ -1,9 +1,9 @@
 package ecommerce.scheduling
 
-import java.time.ZonedDateTime
+import java.time.OffsetDateTime
 
-import akka.cluster.sharding.ShardRegion.EntityId
-import ecommerce.scheduling.CalendarTimeManager.{Allocation, CalendarTimeManagerActions}
+import ecommerce.scheduling.CalendarTimeManager.CalendarTimeManagerActions
+import ecommerce.scheduling.timeline.{AllocatedTimeInterval, AllocationsTimeLine, TimeInterval}
 import pl.newicom.dddd.actor.PassivationConfig
 import pl.newicom.dddd.aggregate
 import pl.newicom.dddd.aggregate._
@@ -11,158 +11,8 @@ import pl.newicom.dddd.eventhandling.EventPublisher
 import pl.newicom.dddd.office.LocalOfficeId
 import pl.newicom.dddd.office.LocalOfficeId.fromRemoteId
 
-import scala.annotation.tailrec
-import scala.collection.{AbstractIterable, AbstractIterator}
+import scala.language.higherKinds
 
-trait TimeInterval {
-
-  def start: ZonedDateTime
-
-  def end: ZonedDateTime
-
-  def hasIntersect(otherStart: ZonedDateTime, otherEnd: ZonedDateTime): Boolean = start.isBefore(otherEnd) && end.isAfter(otherStart)
-
-}
-
-//case class FreeTimeInterval(start: Option[ZonedDateTime], end: Option[ZonedDateTime]) extends TimeInterval
-
-case class AllocatedTimeInterval(start: ZonedDateTime, end: ZonedDateTime, timeAllocationManagerId: EntityId, organizerId: EntityId) extends TimeInterval {
-
-  def hasIntersect(other: AllocatedTimeInterval): Boolean = hasIntersect(other.start, other.end)
-
-}
-
-trait TimeLine
-
-class AllocationsTimeLine private(allocations: List[AllocatedTimeInterval]) {
-
-  def exists(p: AllocatedTimeInterval => Boolean): Boolean = allocations.exists(p)
-
-  def find(p: AllocatedTimeInterval => Boolean): Option[AllocatedTimeInterval] = allocations.find(p)
-
-  def +=(allocation: AllocatedTimeInterval) : AllocationsTimeLine = {
-
-    val (left, right) = allocations.span(!_.start.isBefore(allocation.end))
-
-//    if (right.nonEmpty) require(!right.head.end.isBefore(allocation.start), "Can not add allocation because interval has intersect with allocated time")
-
-    AllocationsTimeLine(left ::: allocation :: right)
-  }
-
-//  def iterator: Iterator[TimeInterval] = {
-//    if (allocations.isEmpty) {
-//      Iterator.single(FreeTimeInterval(None, None))
-//    } else {
-//      new AbstractIterator[TimeInterval] {
-//        override def hasNext: Boolean = ???
-//
-//        override def next(): TimeInterval = ???
-//      }
-//    }
-//  }
-//
-//  def find[A <: TimeInterval](p: A => Boolean): A = {
-//
-//    var next: Option[ZonedDateTime] = None
-//
-//    var these = allocations
-//
-//    while (these.nonEmpty && (!these.head.start.isBefore(time))) {
-//      next = Some(these.head.start)
-//      these = these.tail
-//    }
-//
-//    val previous = these.headOption.map(_.end)
-//
-//    (previous, next)
-//
-//  }
-
-
-}
-
-object AllocationsTimeLine {
-
-  def apply(): AllocationsTimeLine = new AllocationsTimeLine(Nil)
-
-  def apply(allocations: AllocatedTimeInterval*): AllocationsTimeLine = allocations.foldLeft(AllocationsTimeLine())(_ += _)
-
-  def apply(allocations: List[AllocatedTimeInterval]): AllocationsTimeLine = allocations.foldLeft(AllocationsTimeLine())(_ += _)
-
-}
-
-case class CalendarTimeAllocationsManager(allocations: List[Allocation]) {
-
-  def exists(p: Allocation => Boolean): Boolean = allocations.exists(p)
-
-  def nearest(time: ZonedDateTime): (Option[ZonedDateTime], Option[ZonedDateTime]) = {
-
-    var next: Option[ZonedDateTime] = None
-
-    var these = allocations
-
-    while (these.nonEmpty && (!these.head.start.isBefore(time))) {
-      next = Some(these.head.start)
-      these = these.tail
-    }
-
-    val previous = these.headOption.map(_.end)
-
-    (previous, next)
-
-  }
-
-  def isEmpty(start: ZonedDateTime, end: ZonedDateTime): Boolean = {
-
-    require(end.isAfter(start), "end is not after start")
-
-    nearest(start)._2.forall(!_.isBefore(end))
-
-  }
-
-  def add(allocation: Allocation): CalendarTimeAllocationsManager = {
-    val (left, right) = allocations.span(!_.start.isBefore(allocation.end))
-
-    CalendarTimeAllocationsManager(left ::: allocation :: right)
-  }
-
-  def remove(p: Allocation => Boolean): CalendarTimeAllocationsManager = {
-    CalendarTimeAllocationsManager(allocations.filterNot(p))
-  }
-
-  def findWithClosest(p: Allocation => Boolean): (Option[Allocation], Option[Allocation], Option[Allocation]) = {
-
-    var next: Option[Allocation] = None
-
-    var these = allocations
-
-    while (these.nonEmpty && p(these.head)) {
-      next = Some(these.head)
-      these = these.tail
-    }
-
-    val previous = if (these.isEmpty) None else these.tail.headOption
-
-
-    (if (these.isEmpty) None else these.tail.headOption, these.headOption, next)
-
-  }
-
-  def break(p: Allocation => Boolean) = {
-
-  }
-
-}
-
-//object CalendarTimeAllocationsManager {
-//
-//  def apply(allocations: List[Allocation]): CalendarTimeAllocationsManager = allocations.foldLeft(new CalendarTimeAllocationsManager(Nil)){case (acc, el) => acc.add(el)}
-//
-//}
-
-case class CalendarTimeAllocationsQueueManager(queue: List[Allocation]) {
-
-}
 
 object CalendarTimeManager extends aggregate.AggregateRootSupport {
 
@@ -177,228 +27,162 @@ object CalendarTimeManager extends aggregate.AggregateRootSupport {
             CalendarTimeAllocated(calendarId, timeAllocationManagerId, organizerId, interval)
       }
       .handleEvents{
-        case CalendarTimeAllocated(calendarId, timeAllocationManagerId, organizerId, interval) =>
-          Created(AllocationsTimeLine(), CalendarTimeAllocationsManager(List(Allocation(timeAllocationManagerId, organizerId, interval.start, interval.end))), List(Allocation(timeAllocationManagerId, organizerId, interval.start, interval.end)), List.empty)
+        case CalendarTimeAllocated(_, timeAllocationManagerId, organizerId, interval) =>
+          Active(AllocationsTimeLine().add(AllocatedTimeInterval(interval.start, interval.end, timeAllocationManagerId, organizerId)), List.empty)
       }
   }
 
-  def allocate(start: Option[ZonedDateTime], end: Option[ZonedDateTime], queuedAllocations: List[Allocation]): List[Allocation] = {
-    queuedAllocations
-      .filter(allocation => start.fold(true)(!_.isAfter(allocation.start)) && end.fold(true)(!_.isBefore(allocation.end)))
-      .foldLeft(List.empty[Allocation]){case (acc, el) =>
-          acc.find(_.hasIntersect(el)) match {
-            case Some(x) => acc
-            case None => el :: acc
-          }
+  def view[A <: TimeInterval](start: Option[OffsetDateTime], end: Option[OffsetDateTime], timeLine: List[A]): List[A] = {
+    timeLine.filter(timeInterval => start.forall(!_.isAfter(timeInterval.start)) && end.forall(!_.isBefore(timeInterval.end)))
+  }
+
+  def allocate[A <: TimeInterval](timeLine: List[A], forAllocation: List[A]): List[A] = {
+    forAllocation
+      .view
+//      .filter(timeInterval => start.forall(!_.isAfter(timeInterval.start)) && end.forall(!_.isBefore(timeInterval.end)) && !timeLine.exists(_.hasIntersect(timeInterval.start, timeInterval.end)))
+      .filterNot(timeInterval => timeLine.exists(_.hasIntersect(timeInterval)))
+      .foldLeft(List.empty[A]){
+        case (acc, el) if acc.exists(_.hasIntersect(el.start, el.end)) => acc
+        case (acc, el) => el :: acc
       }
   }
 
-  def addAllocation(allocation:Allocation, allocations: List[Allocation]): List[Allocation] = {
-    val (left, right) = allocations.span(!_.start.isBefore(allocation.end))
+  case class Active(allocationsTimeLine: AllocationsTimeLine, allocationTimeQueue: List[AllocatedTimeInterval]) extends CalendarTimeManagerActions {
 
-    left ::: allocation :: right
-  }
+    def allocateActions: Actions = {
 
-  def spanAllocatedTime(allocation: Allocation, allocations: List[Allocation]): Option[(List[Allocation], List[Allocation])] = {
-    if (allocations.isEmpty) {
-      Some(Nil, Nil)
-    } else {
+      def containsTimeAllocationManager(timeAllocationManagerId: EntityId) =
+        allocationsTimeLine.hasAllocatedTimeIntervalByAllocationTimeManagerId(timeAllocationManagerId) || allocationTimeQueue.exists(_.timeAllocationManagerId == timeAllocationManagerId)
 
-      val (left, right) = allocations.span(!_.start.isBefore(allocation.end))
-
-      if (right.isEmpty || !right.head.end.isAfter(allocation.start)) {
-        Some(left, right)
-      } else {
-        None
-      }
-    }
-  }
-
-  def findAllocatedTime(timeAllocationManagerId: EntityId, allocatedTime: List[Allocation]): (Option[Allocation], Option[Allocation], Option[Allocation]) = {
-
-    var after: Option[Allocation] = None
-
-    var these = allocatedTime
-
-    while (these.nonEmpty && these.head.timeAllocationManagerId != timeAllocationManagerId) {
-      after = Some(these.head)
-      these = these.tail
-    }
-
-    (after, these.headOption, if (these.isEmpty) None else these.tail.headOption)
-
-  }
-
-  /*
-  * allocatedTime is the ordered list of allocations in reverse order last -> first
-  * */
-  case class Created(allocationsTimeLine: AllocationsTimeLine, allocationTimeManager: CalendarTimeAllocationsManager, allocatedTime: List[Allocation], allocationTimeQueue: List[Allocation]) extends CalendarTimeManagerActions {
-
-    def isFreeForAllocation(start: ZonedDateTime, end: ZonedDateTime): Boolean = {
-      if (allocatedTime.isEmpty) {
-        true
-      } else {
-
-        var these = allocatedTime
-
-        while (these.nonEmpty && !these.head.start.isBefore(end)) {
-          these = these.tail
-        }
-
-        if (these.isEmpty) {
-          true
-        } else {
-          !these.head.end.isAfter(start)
-        }
-      }
-    }
-
-    def actions: Actions =
       handleCommands{
+        case AllocateCalendarTime(calendarId, timeAllocationManagerId, _, _) if containsTimeAllocationManager(timeAllocationManagerId) =>
+          error(s"CalendarTimeManager $calendarId has allocation by TimeallocationManager $timeAllocationManagerId")
+
+        case AllocateCalendarTime(calendarId, timeAllocationManagerId, organizerId, interval) if allocationsTimeLine.hasIntersects(interval.start, interval.end) =>
+          CalendarTimeAllocationQueued(calendarId, timeAllocationManagerId, organizerId, interval)
+
         case AllocateCalendarTime(calendarId, timeAllocationManagerId, organizerId, interval) =>
-          def timeAllocationManagerIdСonstraint(p: Allocation): Boolean = p.timeAllocationManagerId == timeAllocationManagerId
+          CalendarTimeAllocated(calendarId, timeAllocationManagerId, organizerId, interval)
 
-          require(!allocationTimeManager.exists(timeAllocationManagerIdСonstraint) && !allocationTimeQueue.exists(timeAllocationManagerIdСonstraint), s"CalendarTimeManager $calendarId has allocation by TimeallocationManager $timeAllocationManagerId")
-
-          allocationsTimeLine.find(_.hasIntersect(interval.start, interval.end)) match {
-            case Some(x) => CalendarTimeAllocationQueued(calendarId, timeAllocationManagerId, organizerId, interval)
-            case None => CalendarTimeAllocated(calendarId, timeAllocationManagerId, organizerId, interval)
-          }
-
-//          if (allocationTimeManager.isEmpty(interval.start, interval.end)) {
-//            CalendarTimeAllocated(calendarId, timeAllocationManagerId, organizerId, interval)
-//          } else {
-//            CalendarTimeAllocationQueued(calendarId, timeAllocationManagerId, organizerId, interval)
-//          }
-
-//          if (allocatedTime.exists(_.timeAllocationManagerId == timeAllocationManagerId) || allocationTimeQueue.exists(_.timeAllocationManagerId == timeAllocationManagerId)) {
-//            throw new RuntimeException(s"CalendarTimeManager $calendarId has allocation by TimeallocationManager $timeAllocationManagerId")
-//          } else {
-//            if (isFreeForAllocation(interval.start, interval.end)) {
-////              if (allocatedTime.exists(_.hasIntersect(interval))) {
-//              CalendarTimeAllocated(calendarId, timeAllocationManagerId, organizerId, interval)
-//            } else {
-//              CalendarTimeAllocationQueued(calendarId, timeAllocationManagerId, organizerId, interval)
-//            }
-//          }
         case DeallocateCalendarTime(calendarId, timeAllocationManagerId) =>
 
-//          val (allocationAfter, allocation, allocationBefore) = findAllocatedTime(timeAllocationManagerId, allocatedTime)
-
-          val (allocationBefore, allocation, allocationAfter) = allocationTimeManager.findWithClosest(_.timeAllocationManagerId != timeAllocationManagerId)
-
-          val queuedAllocation = allocationTimeQueue.find(_.timeAllocationManagerId == timeAllocationManagerId)
-
-          if (allocation.isEmpty && queuedAllocation.isEmpty) {
-            throw new RuntimeException(s"CalendarTimeManager $calendarId has no allocation by TimeallocationManager $timeAllocationManagerId")
-          } else {
-
-            val allocationEvents: List[CalendarTimeManagerEvent] = allocation.map{ p =>
-              val allocatedFromQueue = allocate(allocationBefore.map(_.end), allocationAfter.map(_.start), allocationTimeQueue)
-                .map(allocationFromQueue => CalendarTimeAllocatedFromQueue(calendarId, allocationFromQueue.timeAllocationManagerId, allocationFromQueue.organizerId, Interval(allocationFromQueue.start, allocationFromQueue.end)))
-
-              CalendarTimeDeallocated(calendarId, p.timeAllocationManagerId) :: allocatedFromQueue
-            }.getOrElse(Nil)
-
-            val queuedAllocationEvents: List[CalendarTimeManagerEvent] = queuedAllocation.map { p =>
-              List(CalendarTimeDeallocatedFromQueue(calendarId, p.timeAllocationManagerId))
-            }.getOrElse(Nil)
-
-            allocationEvents ::: queuedAllocationEvents
-
-          }
-        case command @ ReallocateCalendarTime(calendarId, timeAllocationManagerId, organizerId, interval) =>
-
-          val (allocationAfter, allocation, allocationBefore) = findAllocatedTime(timeAllocationManagerId, allocatedTime)
-
-          val queuedAllocation = allocationTimeQueue.find(_.timeAllocationManagerId == timeAllocationManagerId)
-
-          if (allocation.isEmpty && queuedAllocation.isEmpty) {
-            throw new RuntimeException(s"CalendarTimeManager $calendarId has no allocation by TimeallocationManager $timeAllocationManagerId")
-          } else {
-
-            def reallocateFromOrInQueue(p: Allocation): CalendarTimeManagerEvent = {
-              //try allocate this allocation or update in queue in other case
-              if (allocatedTime.exists(_.hasIntersect(p))) {
-                CalendarTimeReallocatedInQueue(command)
-              } else {
-                CalendarTimeReallocatedFromQueue(command)
+          def processTimeLine: Option[List[CalendarTimeManagerEvent]] =
+            allocationsTimeLine
+              .neighbours(_.timeAllocationManagerId == timeAllocationManagerId)
+              .map{
+                case (previous, next) =>
+                  AllocationsTimeLine()
+                    .canBeAllocated(view(previous.map(_.end), next.map(_.start), allocationTimeQueue))
+                      .timeline.map(allocatedTimeInterval =>
+                      CalendarTimeAllocatedFromQueue(calendarId, allocatedTimeInterval.timeAllocationManagerId, allocatedTimeInterval.organizerId, Interval(allocatedTimeInterval.start, allocatedTimeInterval.end))
+                    )
               }
-            }
+              .map(CalendarTimeDeallocated(calendarId, timeAllocationManagerId) :: _)
 
-            def reallocateInAllocationTime(p: Allocation) = {
+          def processQueue: Option[List[CalendarTimeDeallocatedFromQueue]] =
+            allocationTimeQueue
+              .find(_.timeAllocationManagerId == timeAllocationManagerId)
+              .map(p => List(CalendarTimeDeallocatedFromQueue(calendarId, p.timeAllocationManagerId)))
 
-            }
+//          println(s"processTimeLine: $processTimeLine")
+//          println(s"processQueue: $processQueue")
 
-//            queuedAllocation.map(reallocateFromOrInQueue) orElse ()
+          processTimeLine orElse processQueue getOrElse error(s"CalendarTimeManager $calendarId has no allocation by TimeallocationManager $timeAllocationManagerId")
+////          def r = List(DeallocateCalendarTimeErrorOccurred(calendarId, s"CalendarTimeManager $calendarId has no allocation by TimeallocationManager $timeAllocationManagerId"))
+////
+////          def r0 = processTimeLine.orElse(processQueue).getOrElse(r)
+////
+//          println(s"result: $r0")
+//
+//          r0
+//
 
-//            val allocationEvents: List[CalendarTimeManagerEvent] = allocation.map{ p =>
+        case ReallocateCalendarTime(calendarId, timeAllocationManagerId, organizerId, interval) =>
 
-            val (deallocatedCalendarTime, resultAllocatedTime) = allocatedTime.partition(p => p.timeAllocationManagerId == timeAllocationManagerId)
+          def processTimeLine:  Option[List[CalendarTimeManagerEvent]] = {
+            allocationsTimeLine
+              .neighbours(_.timeAllocationManagerId == timeAllocationManagerId)
+              .map{
+                case (previous, next) =>
+                  val reallocatedIntervals = allocationsTimeLine.remove(_.timeAllocationManagerId == timeAllocationManagerId).canBeAllocated(AllocatedTimeInterval(interval.start, interval.end, timeAllocationManagerId, organizerId))
 
-            if (resultAllocatedTime.exists(p => p.hasIntersect(interval) && (p.timeAllocationManagerId != timeAllocationManagerId))) {
-              CalendarTimeReallocationQueued(calendarId, timeAllocationManagerId, organizerId, interval)
-            } else {
-              CalendarTimeReallocated(calendarId, timeAllocationManagerId, organizerId, interval)
-            }
+                  val reallocatedFromQueueEvents = reallocatedIntervals.canBeAllocated(view(previous.map(_.end), next.map(_.start), allocationTimeQueue))
+                      .timeline.map{allocation =>
+                    CalendarTimeAllocatedFromQueue(calendarId, allocation.timeAllocationManagerId, allocation.organizerId, Interval(allocation.start, allocation.end))
+                  }
+
+                  if (reallocatedIntervals.isEmpty) {
+                    CalendarTimeReallocationQueued(calendarId, timeAllocationManagerId, organizerId, interval) :: reallocatedFromQueueEvents
+                  } else {
+                    CalendarTimeReallocated(calendarId, timeAllocationManagerId, organizerId, interval) :: reallocatedFromQueueEvents
+                  }
+
+              }
           }
+
+          def processQueue:  Option[List[CalendarTimeManagerEvent]] = {
+            allocationTimeQueue
+              .find(_.timeAllocationManagerId == timeAllocationManagerId)
+              .map{allocation =>
+                if (allocationsTimeLine.hasIntersects(interval.start, interval.end)) {
+                  List(CalendarTimeReallocatedInQueue(calendarId, allocation.timeAllocationManagerId, allocation.organizerId, interval))
+                } else {
+                  List(CalendarTimeReallocatedFromQueue(calendarId, allocation.timeAllocationManagerId, allocation.organizerId, interval))
+                }
+              }
+          }
+
+          processTimeLine orElse processQueue getOrElse error(s"CalendarTimeManager $calendarId has no allocation by TimeallocationManager $timeAllocationManagerId")
+
       }
-      .handleEvents{
-        case event @ CalendarTimeAllocated(_, timeAllocationManagerId, organizerId, interval) =>
-          copy(
-            allocationsTimeLine = allocationsTimeLine += AllocatedTimeInterval(interval.start, interval.end, timeAllocationManagerId, organizerId),
-            allocationTimeManager = allocationTimeManager.add(Allocation(timeAllocationManagerId, organizerId, interval.start, interval.end)),
-            allocatedTime = addAllocation(Allocation(timeAllocationManagerId, organizerId, interval.start, interval.end), allocatedTime)
-          )
-        case CalendarTimeAllocationQueued(_, timeAllocationManagerId, organizerId, interval) =>
-          copy(
-            allocationTimeQueue = Allocation(timeAllocationManagerId, organizerId, interval.start, interval.end) :: allocationTimeQueue
-          )
-        case CalendarTimeAllocatedFromQueue(_, timeAllocationManagerId, organizerId, interval) =>
-          copy(
-            allocationsTimeLine = allocationsTimeLine += AllocatedTimeInterval(interval.start, interval.end, timeAllocationManagerId, organizerId),
-            allocationTimeManager = allocationTimeManager.add(Allocation(timeAllocationManagerId, organizerId, interval.start, interval.end)),
-            allocatedTime = addAllocation(Allocation(timeAllocationManagerId, organizerId, interval.start, interval.end), allocatedTime),
-            allocationTimeQueue = allocationTimeQueue.filterNot(_.timeAllocationManagerId == timeAllocationManagerId)
-          )
-        case CalendarTimeDeallocated(_, timeAllocationManagerId) =>
-          copy(
-            allocationTimeManager = allocationTimeManager.remove(_.timeAllocationManagerId == timeAllocationManagerId),
-            allocatedTime = allocatedTime.filterNot(_.timeAllocationManagerId == timeAllocationManagerId)
-          )
-        case CalendarTimeDeallocatedFromQueue(_, timeAllocationManagerId) =>
-          copy(
-            allocationTimeQueue = allocationTimeQueue.filterNot(_.timeAllocationManagerId == timeAllocationManagerId)
-          )
-//        Reallocation
-        case CalendarTimeReallocated(_, calendarTimeAllocationId, organizerId, interval) =>
-          copy(
-            allocatedTime = addAllocation(Allocation(calendarTimeAllocationId, organizerId, interval.start, interval.end), allocatedTime.filterNot(_.timeAllocationManagerId == calendarTimeAllocationId))
-          )
-        case CalendarTimeReallocationQueued(_, calendarTimeAllocationId, organizerId, interval) =>
-          copy(
-            allocatedTime = allocatedTime.filterNot(_.timeAllocationManagerId == calendarTimeAllocationId),
-            allocationTimeQueue = Allocation(calendarTimeAllocationId, organizerId, interval.start, interval.end) :: allocationTimeQueue
-          )
-        case CalendarTimeReallocatedFromQueue(_, calendarTimeAllocationId, organizerId, interval) =>
-          copy(
-            allocatedTime = addAllocation(Allocation(calendarTimeAllocationId, organizerId, interval.start, interval.end), allocatedTime.filterNot(_.timeAllocationManagerId == calendarTimeAllocationId)),
-            allocationTimeQueue = allocationTimeQueue.filterNot(_.timeAllocationManagerId == calendarTimeAllocationId)
-          )
-        case CalendarTimeReallocatedInQueue(_, calendarTimeAllocationId, organizerId, interval) =>
-          copy(
-            allocationTimeQueue = Allocation(calendarTimeAllocationId, organizerId, interval.start, interval.end) :: allocationTimeQueue.filterNot(_.timeAllocationManagerId == calendarTimeAllocationId)
-          )
-      }
-  }
+        .handleEvents{
+          case CalendarTimeAllocated(_, timeAllocationManagerId, organizerId, interval) =>
+            copy(
+              allocationsTimeLine = allocationsTimeLine add AllocatedTimeInterval(interval.start, interval.end, timeAllocationManagerId, organizerId)
+            )
+          case CalendarTimeAllocationQueued(_, timeAllocationManagerId, organizerId, interval) =>
+            copy(
+              allocationTimeQueue = AllocatedTimeInterval(interval.start, interval.end, timeAllocationManagerId, organizerId) :: allocationTimeQueue
+            )
+          case CalendarTimeAllocatedFromQueue(_, timeAllocationManagerId, organizerId, interval) =>
+            copy(
+              allocationsTimeLine = allocationsTimeLine add AllocatedTimeInterval(interval.start, interval.end, timeAllocationManagerId, organizerId),
+              allocationTimeQueue = allocationTimeQueue.filterNot(_.timeAllocationManagerId == timeAllocationManagerId)
+            )
+          case CalendarTimeDeallocated(_, timeAllocationManagerId) =>
+            copy(
+              allocationsTimeLine = allocationsTimeLine.remove(_.timeAllocationManagerId == timeAllocationManagerId)
+            )
+          case CalendarTimeDeallocatedFromQueue(_, timeAllocationManagerId) =>
+            copy(
+              allocationTimeQueue = allocationTimeQueue.filterNot(_.timeAllocationManagerId == timeAllocationManagerId)
+            )
+          case CalendarTimeReallocated(_, timeAllocationManagerId, organizerId, interval) =>
+            copy(
+              allocationsTimeLine = allocationsTimeLine.remove(_.timeAllocationManagerId == timeAllocationManagerId) add AllocatedTimeInterval(interval.start, interval.end, timeAllocationManagerId, organizerId)
+            )
+          case CalendarTimeReallocationQueued(_, timeAllocationManagerId, organizerId, interval) =>
+            copy(
+              allocationsTimeLine = allocationsTimeLine.remove(_.timeAllocationManagerId == timeAllocationManagerId),
+              allocationTimeQueue = AllocatedTimeInterval(interval.start, interval.end, timeAllocationManagerId, organizerId) :: allocationTimeQueue
+            )
+          case CalendarTimeReallocatedFromQueue(_, timeAllocationManagerId, organizerId, interval) =>
+            copy(
+              allocationsTimeLine = allocationsTimeLine add AllocatedTimeInterval(interval.start, interval.end, timeAllocationManagerId, organizerId),
+              allocationTimeQueue = allocationTimeQueue.filterNot(_.timeAllocationManagerId == timeAllocationManagerId)
+            )
+          case CalendarTimeReallocatedInQueue(_, timeAllocationManagerId, organizerId, interval) =>
+            copy(
+              allocationTimeQueue = AllocatedTimeInterval(interval.start, interval.end, timeAllocationManagerId, organizerId) :: allocationTimeQueue.filterNot(_.timeAllocationManagerId == timeAllocationManagerId)
+            )
 
-  case class Allocation(timeAllocationManagerId: EntityId, organizerId: EntityId, start: ZonedDateTime, end: ZonedDateTime) {
+//          case _ :CalendarTimeManagerCondition =>
+//            this
+        }
 
-     def hasIntersect(otherStart: ZonedDateTime, otherEnd: ZonedDateTime): Boolean = start.isBefore(otherEnd) && otherStart.isBefore(end)
+    }
 
-     def hasIntersect(other: Interval): Boolean = hasIntersect(other.start, other.end)
-
-      def hasIntersect(other: Allocation): Boolean = hasIntersect(other.start, other.end)
+    override def actions: Actions = allocateActions
 
   }
 

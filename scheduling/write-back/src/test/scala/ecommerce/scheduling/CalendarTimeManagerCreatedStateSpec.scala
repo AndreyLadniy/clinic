@@ -1,151 +1,46 @@
 package ecommerce.scheduling
 
-import java.time.ZonedDateTime
+import java.time.OffsetDateTime
 
-import ecommerce.scheduling.CalendarTimeManager.{Allocation, CalendarTimeManagerActions, Created}
-import org.scalatest.{GivenWhenThen, WordSpec, WordSpecLike}
+import ecommerce.scheduling.CalendarTimeManager.Active
+import ecommerce.scheduling.timeline.{AllocatedTimeInterval, AllocationsTimeLine}
+import org.scalatest.{GivenWhenThen, WordSpec}
 
 class CalendarTimeManagerCreatedStateSpec extends WordSpec with GivenWhenThen{
 
-  "CalendarTimeManager state" when {
-    "is Created" must {
-      "change state on CalendarTimeAllocated event" in {
+  "CalendarTimeManager action" when {
+    "is Created" should {
+      "receive AllocateCalendarTime command and produce CalendarTimeAllocated event if AllocationsTimeLine has no intersects with interval from command" in {
 
-      Given("empty Created state")
-      var state: CalendarTimeManagerActions = Created(CalendarTimeAllocationsManager(Nil), Nil, Nil)
+        def toCalendarTimeAllocated(actions: CalendarTimeManager.Active, interval: Interval) = actions.handleCommand(AllocateCalendarTime("1", "1", "1", interval)) == Seq( CalendarTimeAllocated("1", "1", "1", interval) )
 
-      When("first CalendarTimeAllocated event is received")
-      state = state.apply(CalendarTimeAllocated("1", "1", "1", Interval(ZonedDateTime.parse("2017-02-13T11:00Z"), ZonedDateTime.parse("2017-02-13T11:30Z"))))
-
-      Then("state must have first allocation")
-      assert(
-        state == Created(
-          CalendarTimeAllocationsManager(Nil),
-          List(
-            Allocation("1", "1", ZonedDateTime.parse("2017-02-13T11:00Z"), ZonedDateTime.parse("2017-02-13T11:30Z"))
-          ),
-          Nil
-        )
-      )
-
-      When("greater CalendarTimeAllocated event is received")
-      state = state.apply(CalendarTimeAllocated("1", "2", "1", Interval(ZonedDateTime.parse("2017-02-13T12:00Z"), ZonedDateTime.parse("2017-02-13T12:30Z"))))
-
-      Then("state must have prepended allocation")
-      assert(
-        state == Created(
-          CalendarTimeAllocationsManager(Nil),
-          List(
-            Allocation("2", "1", ZonedDateTime.parse("2017-02-13T12:00Z"), ZonedDateTime.parse("2017-02-13T12:30Z")),
-            Allocation("1", "1", ZonedDateTime.parse("2017-02-13T11:00Z"), ZonedDateTime.parse("2017-02-13T11:30Z"))
-          ),
-          Nil
-        )
-      )
-
-      When("lower CalendarTimeAllocated event is received")
-      state = state.apply(CalendarTimeAllocated("1", "3", "1", Interval(ZonedDateTime.parse("2017-02-13T10:00Z"), ZonedDateTime.parse("2017-02-13T10:30Z"))))
-
-      Then("state must have appended allocation")
-      assert(
-        state == Created(
-          CalendarTimeAllocationsManager(Nil),
-          List(
-            Allocation("2", "1", ZonedDateTime.parse("2017-02-13T12:00Z"), ZonedDateTime.parse("2017-02-13T12:30Z")),
-            Allocation("1", "1", ZonedDateTime.parse("2017-02-13T11:00Z"), ZonedDateTime.parse("2017-02-13T11:30Z")),
-            Allocation("3", "1", ZonedDateTime.parse("2017-02-13T10:00Z"), ZonedDateTime.parse("2017-02-13T10:30Z"))
-          ),
-          Nil
-        )
-      )
-
-      When("middle CalendarTimeAllocated event is received")
-      state = state.apply(CalendarTimeAllocated("1", "4", "1", Interval(ZonedDateTime.parse("2017-02-13T10:30Z"), ZonedDateTime.parse("2017-02-13T11:00Z"))))
-
-      Then("state must have inserted allocation")
-      assert(
-        state == Created(
-          CalendarTimeAllocationsManager(Nil),
-          List(
-            Allocation("2", "1", ZonedDateTime.parse("2017-02-13T12:00Z"), ZonedDateTime.parse("2017-02-13T12:30Z")),
-            Allocation("1", "1", ZonedDateTime.parse("2017-02-13T11:00Z"), ZonedDateTime.parse("2017-02-13T11:30Z")),
-            Allocation("4", "1", ZonedDateTime.parse("2017-02-13T10:30Z"), ZonedDateTime.parse("2017-02-13T11:00Z")),
-            Allocation("3", "1", ZonedDateTime.parse("2017-02-13T10:00Z"), ZonedDateTime.parse("2017-02-13T10:30Z"))
-          ),
-          Nil
-        )
-      )
-
-    }
-
-      "have addAllocation function" which {
-
-        "add allocation in empty allocations" in {
-          val allocations = CalendarTimeManager.addAllocation(Allocation("1", "1", ZonedDateTime.parse("2017-02-13T11:00Z"), ZonedDateTime.parse("2017-02-13T11:30Z")), Nil)
-
-          assert(
-            allocations == List(
-              Allocation("1", "1", ZonedDateTime.parse("2017-02-13T11:00Z"), ZonedDateTime.parse("2017-02-13T11:30Z"))
-            )
-          )
+        object AllocationsTimeLineWithoutIntersections extends AllocationsTimeLine {
+          override def exists(p: AllocatedTimeInterval => Boolean): Boolean = false
         }
 
-        "prepend allocation if later" in {
+        val actions: CalendarTimeManager.Active = Active(
+          AllocationsTimeLineWithoutIntersections,
+          Nil
+        )
 
-          val allocations = CalendarTimeManager.addAllocation(
-            Allocation("2", "1", ZonedDateTime.parse("2017-02-13T12:00Z"), ZonedDateTime.parse("2017-02-13T12:30Z")),
-            List(
-              Allocation("1", "1", ZonedDateTime.parse("2017-02-13T11:00Z"), ZonedDateTime.parse("2017-02-13T11:30Z"))
-            )
-          )
+        assert(toCalendarTimeAllocated(actions, Interval(OffsetDateTime.parse("2017-02-13T10:30Z"), OffsetDateTime.parse("2017-02-13T11:01Z"))))
 
-          assert(
-            allocations == List(
-              Allocation("2", "1", ZonedDateTime.parse("2017-02-13T12:00Z"), ZonedDateTime.parse("2017-02-13T12:30Z")),
-              Allocation("1", "1", ZonedDateTime.parse("2017-02-13T11:00Z"), ZonedDateTime.parse("2017-02-13T11:30Z"))
-            )
-          )
+      }
+
+      "receive AllocateCalendarTime command and produce CalendarTimeAllocationQueued event if AllocationsTimeLine has intersecting with interval from command" in {
+
+        def toCalendarTimeAllocationQueued(actions: CalendarTimeManager.Active, interval: Interval) = actions.handleCommand(AllocateCalendarTime("1", "1", "1", interval)) == Seq( CalendarTimeAllocationQueued("1", "1", "1", interval) )
+
+        object AllocationsTimeLineWithIntersections extends AllocationsTimeLine {
+          override def exists(p: AllocatedTimeInterval => Boolean): Boolean = true
         }
 
-        "append allocation if earlier" in {
+        val actions: CalendarTimeManager.Active = Active(
+          AllocationsTimeLineWithIntersections,
+          Nil
+        )
 
-          val allocations = CalendarTimeManager.addAllocation(
-            Allocation("3", "1", ZonedDateTime.parse("2017-02-13T10:00Z"), ZonedDateTime.parse("2017-02-13T10:30Z")),
-            List(
-              Allocation("2", "1", ZonedDateTime.parse("2017-02-13T12:00Z"), ZonedDateTime.parse("2017-02-13T12:30Z")),
-              Allocation("1", "1", ZonedDateTime.parse("2017-02-13T11:00Z"), ZonedDateTime.parse("2017-02-13T11:30Z"))
-            )
-          )
-
-          assert(
-            allocations == List(
-              Allocation("2", "1", ZonedDateTime.parse("2017-02-13T12:00Z"), ZonedDateTime.parse("2017-02-13T12:30Z")),
-              Allocation("1", "1", ZonedDateTime.parse("2017-02-13T11:00Z"), ZonedDateTime.parse("2017-02-13T11:30Z")),
-              Allocation("3", "1", ZonedDateTime.parse("2017-02-13T10:00Z"), ZonedDateTime.parse("2017-02-13T10:30Z"))
-            )
-          )
-        }
-
-        "insert allocation if between" in {
-
-          val allocations = CalendarTimeManager.addAllocation(
-            Allocation("4", "1", ZonedDateTime.parse("2017-02-13T10:30Z"), ZonedDateTime.parse("2017-02-13T11:00Z")),
-            List(
-              Allocation("2", "1", ZonedDateTime.parse("2017-02-13T12:00Z"), ZonedDateTime.parse("2017-02-13T12:30Z")),
-              Allocation("1", "1", ZonedDateTime.parse("2017-02-13T11:00Z"), ZonedDateTime.parse("2017-02-13T11:30Z")),
-              Allocation("3", "1", ZonedDateTime.parse("2017-02-13T10:00Z"), ZonedDateTime.parse("2017-02-13T10:30Z"))
-            )
-          )
-
-          assert(
-            allocations == List(
-              Allocation("2", "1", ZonedDateTime.parse("2017-02-13T12:00Z"), ZonedDateTime.parse("2017-02-13T12:30Z")),
-              Allocation("1", "1", ZonedDateTime.parse("2017-02-13T11:00Z"), ZonedDateTime.parse("2017-02-13T11:30Z")),
-              Allocation("4", "1", ZonedDateTime.parse("2017-02-13T10:30Z"), ZonedDateTime.parse("2017-02-13T11:00Z")),
-              Allocation("3", "1", ZonedDateTime.parse("2017-02-13T10:00Z"), ZonedDateTime.parse("2017-02-13T10:30Z"))
-            )
-          )
-        }
+        assert(toCalendarTimeAllocationQueued(actions, Interval(OffsetDateTime.parse("2017-02-13T10:30Z"), OffsetDateTime.parse("2017-02-13T12:00Z"))))
 
       }
     }

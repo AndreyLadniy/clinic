@@ -1,0 +1,4 @@
+#!/bin/bash
+
+source ./environment
+../../api-gateway/web/target/universal/stage/bin/web-api-gateway

@@ -1,10 +1,14 @@
 #!/bin/bash
 
-http -a admin:changeit POST ':2113/projection/$by_category/command/enable'
-http -a admin:changeit POST ':2113/projection/$by_event_type/command/enable'
-http -a admin:changeit POST ':2113/projection/$stream_by_category/command/enable'
-http -a admin:changeit POST ':2113/projection/$streams/command/enable'
+source ./environment
 
-./create-projection clock_proj ../headquarters/write-back/src/main/resources/projections/clock.js
-./create-projection current_deadlines_proj ../headquarters/write-back/src/main/resources/projections/current-deadlines.js
-./create-projection inviting_process_proj ../headquarters/write-back/src/main/resources/projections/inviting-process.js
+HOST="${1:-localhost}"
+
+http -a admin:changeit POST ${HOST}':2113/projection/$by_category/command/enable'
+http -a admin:changeit POST ${HOST}':2113/projection/$by_event_type/command/enable'
+http -a admin:changeit POST ${HOST}':2113/projection/$stream_by_category/command/enable'
+http -a admin:changeit POST ${HOST}':2113/projection/$streams/command/enable'
+
+#./create-projection clock_proj ../headquarters/write-back/src/main/resources/projections/clock.js
+#./create-projection current_deadlines_proj ../headquarters/write-back/src/main/resources/projections/current-deadlines.js
+./create-projection ${HOST} time_allocation_process ../headquarters/write-back/src/main/resources/projections/time_allocation-process.js

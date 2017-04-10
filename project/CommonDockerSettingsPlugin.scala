@@ -9,7 +9,7 @@ object CommonDockerSettingsPlugin extends AutoPlugin with DockerKeys {
   override lazy val projectSettings = Seq(
       dockerBaseImage := "develar/java:latest",
       dockerCommands ++= Seq(
-        Cmd("ENV", s"ES_HOST=127.0.0.1 ES_PASSWORD=changeit ECOMMERCE_LOG_LEVEL=$appLogLevel")
+        Cmd("ENV", s"ES_HOST=127.0.0.1 ES_PASSWORD=changeit ECOMMERCE_LOG_LEVEL=$appLogLevel APP_CLUSTER_SEED=akka.tcp://ecommerce@127.0.0.1:9001 APP_HOST=127.0.0.1")
       )
   )
 }

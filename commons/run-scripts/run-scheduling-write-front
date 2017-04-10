@@ -1,0 +1,4 @@
+#!/bin/bash
+
+source ./environment
+../../scheduling/write-front/target/universal/stage/bin/scheduling-write-front

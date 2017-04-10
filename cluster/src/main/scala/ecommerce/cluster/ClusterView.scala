@@ -19,7 +19,16 @@ class ClusterView extends Actor with ActorLogging {
 
   private var members = Set.empty[Address]
 
-  Cluster(context.system).subscribe(self, InitialStateAsEvents, classOf[MemberEvent])
+  val cluster = Cluster(context.system)
+
+  // subscribe to cluster changes, re-subscribe when restart
+  override def preStart(): Unit = {
+    //#subscribe
+    cluster.subscribe(self, initialStateMode = InitialStateAsEvents,
+      classOf[MemberEvent], classOf[UnreachableMember])
+    //#subscribe
+  }
+  override def postStop(): Unit = cluster.unsubscribe(self)
 
   override def receive: PartialFunction[Any, Unit] = {
     case GetMemberNodes =>

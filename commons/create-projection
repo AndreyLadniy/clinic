@@ -1,3 +1,5 @@
 #!/bin/bash
 
-http -a admin:changeit :2113/projections/continuous name==${1} type==JS emit==1 < "${2}"
+HOST="${1:-localhost}"
+
+http -a admin:changeit ${HOST}:2113/projections/continuous name==${2} type==JS emit==1 < "${3}"

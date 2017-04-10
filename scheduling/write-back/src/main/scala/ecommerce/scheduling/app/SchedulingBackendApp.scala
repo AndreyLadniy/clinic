@@ -2,8 +2,7 @@ package ecommerce.scheduling.app
 
 import akka.cluster.Cluster
 import akka.kernel.Bootable
-import ecommerce.scheduling.calendar.Calendar
-import ecommerce.scheduling.{CalendarTimeManager, TimeAllocationManager}
+import ecommerce.scheduling.{Calendar, CalendarTimeManager, TimeAllocationManager}
 import pl.newicom.dddd.cluster._
 import pl.newicom.dddd.office.OfficeFactory.office
 

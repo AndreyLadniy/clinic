@@ -1,0 +1,10 @@
+#!/bin/bash
+
+LOGS="../../target"
+
+./run-headquarters-write-back > ${LOGS}/headquarters-write-back.log 2>&1 &
+./run-scheduling-read-back > ${LOGS}/scheduling-read-back.log 2>&1 &
+./run-scheduling-read-front > ${LOGS}/scheduling-read-front.log 2>&1 &
+./run-scheduling-write-back > ${LOGS}/scheduling-write-back.log 2>&1 &
+./run-scheduling-write-front > ${LOGS}/scheduling-write-front.log 2>&1 &
+./run-web-api-gateway > ${LOGS}/web-api-gateway.log 2>&1 &

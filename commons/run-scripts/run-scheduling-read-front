@@ -1,0 +1,4 @@
+#!/bin/bash
+
+source ./environment
+../../scheduling/read-front/target/universal/stage/bin/scheduling-read-front

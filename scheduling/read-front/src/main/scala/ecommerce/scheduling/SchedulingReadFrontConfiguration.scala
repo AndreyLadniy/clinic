@@ -1,11 +1,10 @@
 package ecommerce.scheduling
 
 import com.typesafe.config.Config
-import pl.newicom.dddd.view.sql.SqlViewStoreConfiguration
 
 import scala.concurrent.duration._
 
-trait SchedulingReadFrontConfiguration extends SqlViewStoreConfiguration {
+trait SchedulingReadFrontConfiguration {
 
   def config: Config
 

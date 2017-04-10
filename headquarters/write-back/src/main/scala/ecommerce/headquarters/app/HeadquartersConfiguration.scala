@@ -4,13 +4,13 @@ import akka.actor.{Props, _}
 import com.typesafe.config.Config
 import ecommerce.headquarters.processes.TimeAllocationProcessManager
 import org.slf4j.Logger
-import pl.newicom.dddd.actor.PassivationConfig
+import pl.newicom.dddd.actor.{CreationSupport, PassivationConfig}
 import pl.newicom.dddd.coordination.ReceptorConfig
-import pl.newicom.dddd.process.ReceptorSupport.ReceptorFactory
-import pl.newicom.dddd.process.{Receptor, SagaActorFactory}
+import pl.newicom.dddd.office.LocalOfficeId
+import pl.newicom.dddd.process.{Receptor, ReceptorActorFactory, SagaActorFactory}
 import pl.newicom.eventstore.EventstoreSubscriber
 
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 object HeadquartersConfiguration {
   val department: String = "Headquarters"
@@ -32,14 +32,16 @@ trait HeadquartersConfiguration {
 //    })
 //  }
 
-  implicit object OrderProcessManagerActorFactory extends SagaActorFactory[TimeAllocationProcessManager] {
+  implicit object TimeAllocationProcessManagerActorFactory extends SagaActorFactory[TimeAllocationProcessManager] {
     def props(pc: PassivationConfig): Props =
       Props(new TimeAllocationProcessManager(pc))
   }
 
-  implicit def receptorFactory: ReceptorFactory = (config: ReceptorConfig) => {
-    new Receptor(config.copy(capacity = 100)) with EventstoreSubscriber {
-      override def redeliverInterval = 10.seconds
+  implicit def receptorFactory[A : LocalOfficeId : CreationSupport]: ReceptorActorFactory[A] = new ReceptorActorFactory[A] {
+    def receptorFactory: ReceptorFactory = (config: ReceptorConfig) => {
+      new Receptor(config.copy(capacity = 100)) with EventstoreSubscriber {
+        override def redeliverInterval: FiniteDuration = 10.seconds
+      }
     }
   }
 

@@ -2,8 +2,7 @@ package ecommerce.scheduling.app
 
 import akka.actor._
 import akka.kernel.Bootable
-import ecommerce.scheduling.calendar.Calendar
-import ecommerce.scheduling.{CalendarTimeManager, TimeAllocationManager}
+import ecommerce.scheduling.{Calendar, CalendarTimeManager, TimeAllocationManager}
 import pl.newicom.dddd.actor.PassivationConfig
 import pl.newicom.dddd.aggregate._
 import pl.newicom.dddd.eventhandling.NoPublishing

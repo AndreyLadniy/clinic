@@ -11,6 +11,8 @@ sealed trait CalendarTimeManagerCommand extends aggregate.Command {
 
 sealed trait CalendarTimeManagerEvent
 
+//sealed trait CalendarTimeManagerCondition extends CalendarTimeManagerEvent
+
 case class AllocateCalendarTime(calendarId: EntityId, calendarTimeAllocationId: EntityId, organizerId: EntityId, interval: Interval) extends CalendarTimeManagerCommand
 
 case class CalendarTimeAllocated(calendarId: EntityId, calendarTimeAllocationId: EntityId, organizerId: EntityId, interval: Interval) extends CalendarTimeManagerEvent
@@ -27,6 +29,7 @@ case class CalendarTimeAllocatedFromQueue(calendarId: EntityId, calendarTimeAllo
 
 case class DeallocateCalendarTime(calendarId: EntityId, calendarTimeAllocationId: EntityId) extends CalendarTimeManagerCommand
 
+//case class DeallocateCalendarTimeErrorOccurred(calendarId: EntityId, error: String) extends CalendarTimeManagerEvent
 
 case class ReallocateCalendarTime(calendarId: EntityId, calendarTimeAllocationId: EntityId, organizerId: EntityId, interval: Interval) extends CalendarTimeManagerCommand
 

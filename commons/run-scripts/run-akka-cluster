@@ -1,0 +1,4 @@
+#!/bin/bash
+
+source ./environment
+../../cluster/target/universal/stage/bin/cluster

@@ -1,6 +1,6 @@
 package ecommerce.scheduling
 
-import java.time.{LocalDate, ZonedDateTime}
+import java.time.{LocalDate, OffsetDateTime, ZonedDateTime}
 
 import org.json4s.JsonAST.{JNull, JString}
 import org.json4s.{CustomSerializer, Formats, NoTypeHints}
@@ -13,6 +13,19 @@ class SchedulingSerializationHintsProvider extends JsonSerializationHintsProvide
   override def hints(default: Formats) = JsonExtraSerHints(NoTypeHints, serializers)
 
 }
+
+case object OffsetDateTimeSerializer extends CustomSerializer[OffsetDateTime](format =>
+  (
+    {
+      case JString(s) =>
+        OffsetDateTime.parse(s)
+      case JNull => null
+    },
+    {
+      case d: OffsetDateTime => JString(d.toString)
+    }
+  )
+)
 
 case object ZonedDateTimeSerializer extends CustomSerializer[ZonedDateTime](format =>
   (
@@ -41,5 +54,5 @@ case object LocalDateSerializer extends CustomSerializer[LocalDate](format =>
 )
 
 object JavaTimeSerializers {
-  def all = List(ZonedDateTimeSerializer, LocalDateSerializer)
+  def all = List(OffsetDateTimeSerializer, ZonedDateTimeSerializer, LocalDateSerializer)
 }

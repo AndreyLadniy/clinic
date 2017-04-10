@@ -1,0 +1,4 @@
+#!/bin/bash
+
+source ./environment
+../../scheduling/write-back/target/universal/stage/bin/scheduling-write-back

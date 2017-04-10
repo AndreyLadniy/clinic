@@ -30,7 +30,12 @@ lazy val `scheduling-write-front` = (project in file("write-front"))
     dockerExposedPorts := Seq(9100),
 //    javaOptions in Universal ++= Seq("-DmainClass=ecommerce.sales.app.SalesFrontApp"),
     mainClass in Compile:= Some("ecommerce.scheduling.app.SchedulingFrontApp"),
-    libraryDependencies += AkkaDDD.writeFront
+    libraryDependencies ++=
+      Seq(
+        AkkaDDD.core,
+        AkkaDDD.writeFront,
+        "ch.megard" %% "akka-http-cors" % "0.1.11"
+      )
   )
   .dependsOn(`scheduling-contracts`, "commons")
   .enablePlugins(HttpServerPlugin)
@@ -51,7 +56,11 @@ lazy val `scheduling-read-front` = (project in file("read-front"))
     dockerExposedPorts := Seq(9110),
     mainClass in Compile:= Some("ecommerce.scheduling.app.SchedulingReadFrontApp"),
     libraryDependencies ++=
-      Seq("com.github.mauricio"  %% "postgresql-async" % "0.2.21")
+      Seq(
+        "com.github.mauricio"  %% "postgresql-async" % "0.2.21",
+        "ch.megard" %% "akka-http-cors" % "0.1.11"
+      )
+
   )
   .dependsOn(`scheduling-read-back` % "test->test;compile->compile", "commons")
   .enablePlugins(HttpServerPlugin)

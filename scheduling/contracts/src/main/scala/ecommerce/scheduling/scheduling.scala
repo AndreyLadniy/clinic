@@ -1,9 +1,9 @@
 package ecommerce.scheduling
 
-import java.time.ZonedDateTime
+import java.time.OffsetDateTime
 
 
-case class Interval(start: ZonedDateTime, end: ZonedDateTime) {
+case class Interval(start: OffsetDateTime, end: OffsetDateTime) {
   def hasIntersect(other: Interval): Boolean = start.isBefore(other.end) && other.start.isBefore(end)
 }
 

@@ -6,7 +6,7 @@ organization in ThisBuild := "com.rudux"
 
 version in ThisBuild := "0.1.0-SNAPSHOT"
 
-scalaVersion in ThisBuild := "2.11.8"
+scalaVersion in ThisBuild := "2.12.1"
 
 sourcesInBase in ThisBuild := false
 
@@ -32,6 +32,8 @@ lazy val `view-update-mongodb` = project.settings(
       "pl.newicom.dddd" %% "view-update" % Version.akkaDDD
     )
 )
+
+lazy val `api-gateway` = project.dependsOn(commons)
 
 addCommandAlias("redeploy", ";clean;docker:stage;restart")
 addCommandAlias("redeployQuick", ";docker:stage;restart")

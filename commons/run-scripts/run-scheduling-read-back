@@ -1,0 +1,4 @@
+#!/bin/bash
+
+source ./environment
+../../scheduling/read-back/target/universal/stage/bin/scheduling-read-back

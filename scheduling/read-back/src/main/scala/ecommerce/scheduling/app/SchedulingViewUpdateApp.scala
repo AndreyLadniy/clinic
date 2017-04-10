@@ -2,7 +2,8 @@ package ecommerce.scheduling.app
 
 import akka.actor._
 import akka.kernel.Bootable
-import ecommerce.scheduling.SchedulingViewUpdateService
+import ecommerce.scheduling.{PostgresProfileWithDateTimeSupport, SchedulingViewUpdateService}
+import pl.newicom.dddd.view.sql.SqlViewStore
 import slick.driver.{JdbcProfile, PostgresDriver}
 
 class SchedulingViewUpdateApp extends Bootable {
@@ -10,8 +11,8 @@ class SchedulingViewUpdateApp extends Bootable {
   override def systemName = "scheduling-view-update"
 
   def startup() = {
-    implicit val profile: JdbcProfile = PostgresDriver
-    system.actorOf(Props(new SchedulingViewUpdateService(config)), "sales-view-update-service")
+    implicit val profile = PostgresProfileWithDateTimeSupport
+    system.actorOf(Props(new SchedulingViewUpdateService(new SqlViewStore(config))), "scheduling-view-update-service")
   }
 
 }

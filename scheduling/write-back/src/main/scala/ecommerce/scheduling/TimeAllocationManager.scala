@@ -49,30 +49,40 @@ object TimeAllocationManager extends AggregateRootSupport {
 
   case object AttendeeDeclined extends AttendeeResponseStatus
 
+  private val emailRegex = """^[a-zA-Z0-9\.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$""".r
+
+  def emailAddress(e: String): Boolean = {
+    if (e == null) false
+    else if (e.trim.isEmpty) false
+    else emailRegex.findFirstMatchIn(e).isDefined
+  }
+
   case class Created(organizerId: EntityId, start: OffsetDateTime, end: OffsetDateTime, attendees: List[Attendee], deallocationRequested: List[EntityId]) extends TimeAllocationManagerActions {
 
     def actions: Actions =
       handleCommands{
+        case AllocateAttendeeTime(timeAllocationManagerId, attendeeId) if !emailAddress(attendeeId) =>
+          error(s"attendeeId must be valid e-mail")
+
         case AllocateAttendeeTime(timeAllocationManagerId, attendeeId) if attendees.exists(_.attendeeId == attendeeId) =>
-//          AllocateAttendeeTimeErrorOccurred(timeAllocationManagerId, attendeeId, s"TimeAllocationManager $timeAllocationManagerId contains $attendeeId attendee")
           error(s"TimeAllocationManager $timeAllocationManagerId contains $attendeeId attendee")
+
         case AllocateAttendeeTime(timeAllocationManagerId, attendeeId) =>
           AttendeeTimeAllocationRequested(timeAllocationManagerId, organizerId, attendeeId, start, end)
 
-        case AcceptAttendeeCalendarTimeAllocation(timeAllocationManagerId: EntityId, attendeeId: EntityId) if !attendees.exists(attendee => attendee.attendeeId == attendeeId && attendee.responseStatus == AttendeeNeedsAction) =>
+        case AcceptAttendeeCalendarTimeAllocation(timeAllocationManagerId, attendeeId) if !attendees.exists(attendee => attendee.attendeeId == attendeeId && attendee.responseStatus == AttendeeNeedsAction) =>
           error(s"TimeAllocationManager $timeAllocationManagerId does not requests $attendeeId attendee time allocation")
 
-        case AcceptAttendeeCalendarTimeAllocation(timeAllocationManagerId: EntityId, attendeeId: EntityId) if attendees.filter(_.responseStatus != AttendeeAccepted).tail.isEmpty =>
+        case AcceptAttendeeCalendarTimeAllocation(timeAllocationManagerId, attendeeId) if attendees.filter(_.responseStatus != AttendeeAccepted).tail.isEmpty =>
           List(AttendeeTimeAllocationAccepted(timeAllocationManagerId, attendeeId), AllAttendeesTimeAllocationsAccepted(timeAllocationManagerId))
-//          LastAttendeeTimeAllocated(timeAllocationManagerId, attendeeId)
 
-        case AcceptAttendeeCalendarTimeAllocation(timeAllocationManagerId: EntityId, attendeeId: EntityId) =>
+        case AcceptAttendeeCalendarTimeAllocation(timeAllocationManagerId, attendeeId) =>
           AttendeeTimeAllocationAccepted(timeAllocationManagerId, attendeeId)
 
-        case DeclineAttendeeCalendarTimeAllocation(timeAllocationManagerId: EntityId, attendeeId: EntityId) if !attendees.exists(attendee => attendee.attendeeId == attendeeId && attendee.responseStatus == AttendeeNeedsAction) =>
+        case DeclineAttendeeCalendarTimeAllocation(timeAllocationManagerId, attendeeId) if !attendees.exists(attendee => attendee.attendeeId == attendeeId && attendee.responseStatus == AttendeeNeedsAction) =>
           error(s"TimeAllocationManager $timeAllocationManagerId does not requests $attendeeId attendee time allocation")
 
-        case DeclineAttendeeCalendarTimeAllocation(timeAllocationManagerId: EntityId, attendeeId: EntityId) =>
+        case DeclineAttendeeCalendarTimeAllocation(timeAllocationManagerId, attendeeId) =>
           AttendeeTimeAllocationDeclined(timeAllocationManagerId, attendeeId)
 
         case DeallocateAttendeeTime(timeAllocationManagerId, attendeeId) if !attendees.exists(_.attendeeId == attendeeId) =>
@@ -89,8 +99,11 @@ object TimeAllocationManager extends AggregateRootSupport {
         case AcceptAttendeeCalendarTimeDeallocation(timeAllocationManagerId, attendeeId) if !deallocationRequested.contains(attendeeId) =>
           error(s"TimeAllocationManager $timeAllocationManagerId does not requests $attendeeId attendee deallocation")
 
+        case AcceptAttendeeCalendarTimeDeallocation(timeAllocationManagerId, attendeeId) if attendees.filter(_.responseStatus != AttendeeAccepted).isEmpty =>
+          List(AttendeeTimeDeallocationAccepted(timeAllocationManagerId, attendeeId), AllAttendeesTimeAllocationsAccepted(timeAllocationManagerId))
+
         case AcceptAttendeeCalendarTimeDeallocation(timeAllocationManagerId, attendeeId) =>
-          AttendeeTimeDeallocated(timeAllocationManagerId, attendeeId)
+          AttendeeTimeDeallocationAccepted(timeAllocationManagerId, attendeeId)
 
         case MoveTimeAllocationManagerInterval(timeAllocationManagerId, startTo, endTo) if startTo.isAfter(endTo) =>
           error(s"TimeAllocationManager $timeAllocationManagerId cannot apply interval with start > end")
@@ -113,7 +126,7 @@ object TimeAllocationManager extends AggregateRootSupport {
           copy(attendees = Attendee(attendeeId, AttendeeDeclined) :: attendees.filterNot(_.attendeeId == attendeeId))
         case AttendeeTimeDeallocationRequested(_, _, attendeeId, _, _) =>
           copy(deallocationRequested = attendeeId :: deallocationRequested)
-        case AttendeeTimeDeallocated(_, attendeeId) =>
+        case AttendeeTimeDeallocationAccepted(_, attendeeId) =>
           copy(attendees = attendees.filterNot(_.attendeeId == attendeeId), deallocationRequested = deallocationRequested.filterNot(_ == attendeeId))
         case TimeAllocationManagerIntervalMoved(_, _, _, startTo, endTo) =>
           copy(start = startTo, end = endTo)

@@ -43,7 +43,7 @@ case class AttendeeTimeAllocationDeclined(timeAllocationManagerId: EntityId, att
 
 case class AttendeeTimeDeallocationRequested(timeAllocationManagerId: EntityId, organizerId: EntityId, attendeeId: EntityId, start: OffsetDateTime, end: OffsetDateTime) extends TimeAllocationManagerEvent
 
-case class AttendeeTimeDeallocated(timeAllocationManagerId: EntityId, attendeeId: EntityId) extends TimeAllocationManagerEvent
+case class AttendeeTimeDeallocationAccepted(timeAllocationManagerId: EntityId, attendeeId: EntityId) extends TimeAllocationManagerEvent
 
 case class TimeAllocationManagerIntervalMoved(timeAllocationManagerId: EntityId, organizerId: EntityId, attendees: List[EntityId], start: OffsetDateTime, end: OffsetDateTime) extends TimeAllocationManagerEvent
 

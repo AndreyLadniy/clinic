@@ -9,5 +9,7 @@
     <root level="${ECOMMERCE_LOG_LEVEL:-DEBUG}">
         <appender-ref ref="CONSOLE"/>
     </root>
+    <logger name="slick" level="INFO"/>
+    <logger name="slick.jdbc.JdbcBackend.statement" level="INFO"/>
 
 </configuration>

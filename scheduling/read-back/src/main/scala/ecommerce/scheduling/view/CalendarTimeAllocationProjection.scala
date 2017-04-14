@@ -84,7 +84,7 @@ class CalendarTimeAllocationProjection(timeAllocationManagerDao: TimeAllocationM
 
         updateTimeAllocationManagerPreparedForAccepting >> notifyEvent(eventMessage, "AllAttendeesTimeAllocationsAccepted")
 
-      case AttendeeTimeDeallocated(timeAllocationManagerId, attendeeId) =>
+      case AttendeeTimeDeallocationAccepted(timeAllocationManagerId, attendeeId) =>
         val remove = timeAllocationManagerAttendeesDao.remove(timeAllocationManagerId, attendeeId)
 
         remove >> notifyEvent(eventMessage, "AttendeeTimeDeallocated")
